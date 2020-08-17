@@ -1,29 +1,44 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This Plugin for HDFS-Namenode resolves the Kubernetes-Cluster-Node for a given Datanode-Pod-VIP.
 
-### What is this repository for? ###
+### Setup ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+1. Build a "fat-jar"(jar with all dependencies) with maven package
+    * Add maven-assembly-plugin to your pom.xml(see hdfs-topology-plugin/pom.xml)
+    * Run maven package
+2. Add the "fat-jar" in Namenode-Dockerfile and rebuild it
+3. Add following tags to hdfs-siteconfig.xml
+````xml
+<property>
+    <name>net.topology.node.switch.mapping.impl</name>
+    <value>org.apache.hadoop.net.PodtoNodeMapping</value>
+</property>
+<property>
+    <name>net.topology.impl</name>
+    <value>org.apache.hadoop.net.NetworkTopologyWithNodeGroup</value>
+</property>
+<property>
+    <name>net.topology.nodegroup.aware</name>
+    <value>true</value>
+</property>
+<property>
+    <name>dfs.block.replicator.classname</name>
+    <value>org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyWithNodeGroup</value>
+</property>
+````
 
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+### Test ###
+1. Create new Client Pod / Add log4j.properties in Dockerfile or mount
+2. Connect on new Pod and run 
+    ````shell script
+    export JAVA_TOOL_OPTIONS="-Dlog4j.configuration=file:/app/log4j.properties ${JAVA_TOOL_OPTIONS} #For Debug
+    hadoop fs -cat <your_file.txt> 
+    ````
+3. Analyze Pod-Logs and search for 
+    ````
+   DEBUG DFSClient: Connecting to datanode <datanode-ip>
+    ````
+4. Check if <datanode-ip> matches IP of the datanode which is located on same kubernetes-node as Client-Pod
+5. Repeat this test several times
+ 
