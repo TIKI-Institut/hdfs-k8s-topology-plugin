@@ -1,63 +1,51 @@
 package org.apache.hadoop.net;
 
-import java.util.List;
-
-import io.fabric8.kubernetes.api.model.*;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.net.InetAddresses;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.ImmutableList;
-import com.google.common.net.InetAddresses;
-import org.apache.hadoop.net.AbstractDNSToSwitchMapping;
-import org.apache.hadoop.net.NetworkTopology;
-import org.apache.hadoop.net.NetworkTopologyWithNodeGroup;
+import java.util.List;
 
 /*HDFS-Topology-Plugin which resolves K8s NodeNames (such as kubernetes-worker-2.dsp.tiki.local) and Pod-VIPS to their Kubernetes-Nodes*/
 
-public class PodtoNodeMapping extends AbstractDNSToSwitchMapping{
+public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
-    private KubernetesClient kubclient;
+    private KubernetesClient kubeclient;
     private String RACK_NAME = NetworkTopology.DEFAULT_RACK;
     private String topology_delimiter = "/";
-    private List<Pod> podsInNamespace;
-    private String namespace = "hdfs-testcluster";
 
     public static final String DEFAULT_NETWORK_LOCATION = NetworkTopology.DEFAULT_RACK + NetworkTopologyWithNodeGroup.DEFAULT_NODEGROUP;
 
-    private static Log log = LogFactory.getLog(PodtoNodeMapping.class);
+    private static Log log = LogFactory.getLog(PodToNodeMapping.class);
 
-    public PodtoNodeMapping() {
-        getOrcreateKubClient();
-        getPodsinNamespace();
+    public PodToNodeMapping() {
+        getOrCreateKubeClient();
     }
 
-    public PodtoNodeMapping(Configuration conf){
+    public PodToNodeMapping(Configuration conf) {
         super(conf);
-        getOrcreateKubClient();
-        getPodsinNamespace();
+        getOrCreateKubeClient();
     }
 
-    private KubernetesClient getOrcreateKubClient() {
-        if(kubclient != null) {return kubclient;}
-        kubclient = new DefaultKubernetesClient();
-        return kubclient;
+    private KubernetesClient getOrCreateKubeClient() {
+        if (kubeclient != null) {
+            return kubeclient;
+        }
+        kubeclient = new DefaultKubernetesClient();
+        return kubeclient;
     }
 
-    private void  getPodsinNamespace(){
-        podsInNamespace = kubclient.pods().inNamespace(namespace).list().getItems();
-    }
 
     @Override
     public List<String> resolve(List<String> names) {
-        getPodsinNamespace();
         List<String> networkPathDirList = Lists.newArrayList();
-        for (String name: names) {
-            getPodsinNamespace();
+        for (String name : names) {
             String networkPathDir = createNetAddress(name);
             networkPathDirList.add(networkPathDir);
         }
@@ -70,10 +58,9 @@ public class PodtoNodeMapping extends AbstractDNSToSwitchMapping{
     private String createNetAddress(String name) {
         String netAddress = "";
         String nodename = "";
-        getPodsinNamespace();
         //Check if the Name is an IP-Adress or the Name of a physical Node (see above)
         if (InetAddresses.isInetAddress(name)) {
-            nodename = resolvebyPodIP(name);
+            nodename = resolveByPodIP(name);
         } else {
             nodename = name.split("\\.")[0];
         }
@@ -81,14 +68,12 @@ public class PodtoNodeMapping extends AbstractDNSToSwitchMapping{
         return netAddress;
     }
 
-    private String resolvebyPodIP(String podIP) {
+    private String resolveByPodIP(String podIP) {
         String Nodename = "";
-        getPodsinNamespace();
-        for (Pod pod: podsInNamespace) {
-                if (pod.getStatus().getPodIP().equals(podIP)) {
-                    Nodename = pod.getSpec().getNodeName();
-                    break;
-                }
+//        get pods with given ip Adress from kubeapi
+        List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP).list().getItems();
+        if (podsWithIPAddress.size() > 0) {
+            Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
         }
         return Nodename;
     }
