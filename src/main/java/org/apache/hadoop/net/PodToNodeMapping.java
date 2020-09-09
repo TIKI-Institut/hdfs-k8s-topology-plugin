@@ -11,12 +11,27 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.List;
+import java.util.Map;
 
-/*HDFS-Topology-Plugin which resolves K8s NodeNames (such as kubernetes-worker-2.dsp.tiki.local) and Pod-VIPS to their Kubernetes-Nodes*/
+/*HDSF-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
+*
+* The Method "resolve" gets called by CachedDNSToSwitchMapping and recieves as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
+* or a Pod-IP-Address (eg. 10.100.2.3)
+*
+* With additional Information about on which K8s-Node the datanode and client-pods are running on, hdfs-namenode can perform its Data-Locality optimization Code on K8s (see doc)
+*
+* The output of "resolve" is a List of "K8s-Network-Adresses" in the Format:
+*
+*       default-rack/<kubernetes-node>/<Pod-IP>
+*
+* ,whereas default-rack is currently a constant
+*
+* */
 
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private KubernetesClient kubeclient;
+    private Map<String, String> topologyMap;
     private String RACK_NAME = NetworkTopology.DEFAULT_RACK;
     private String topology_delimiter = "/";
 
@@ -59,13 +74,20 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         String netAddress = "";
         String nodename = "";
         //Check if the Name is an IP-Adress or the Name of a physical Node (see above)
-        if (InetAddresses.isInetAddress(name)) {
-            nodename = resolveByPodIP(name);
+        if (topologyMap.get(name) == null && topologyMap.get(name).isEmpty()) {
+            if (InetAddresses.isInetAddress(name)) {
+                nodename = resolveByPodIP(name);
+                topologyMap.put(name, nodename);
+            } else {
+                nodename = name.split("\\.")[0];
+                topologyMap.put(name, nodename);
+            }
+            netAddress = RACK_NAME + topology_delimiter + nodename;
+            return netAddress;
         } else {
-            nodename = name.split("\\.")[0];
+            nodename = topologyMap.get(name);
+            return nodename;
         }
-        netAddress = RACK_NAME + topology_delimiter + nodename;
-        return netAddress;
     }
 
     private String resolveByPodIP(String podIP) {

@@ -1,6 +1,7 @@
 # README #
 
-This Plugin for HDFS-Namenode resolves the Kubernetes-Cluster-Node for a given Datanode-Pod-VIP.
+This Plugin for HDFS-Namenode resolves the Kubernetes-Cluster-Node for a given Datanode-Pod-VIP. \
+By doing this, it fixes broken HDFS Data Locality on a Kubernetes Cluster.
 
 ### Setup ###
 
@@ -9,25 +10,25 @@ This Plugin for HDFS-Namenode resolves the Kubernetes-Cluster-Node for a given D
     * Run maven package
 2. Add the "fat-jar" in Namenode-Dockerfile and rebuild it
 3. Add following tags to hdfs-siteconfig.xml
-````xml
-<property>
-    <name>net.topology.node.switch.mapping.impl</name>
-    <value>org.apache.hadoop.net.PodToNodeMappingorg.apache.hadoop.net.PodToNodeMapping</value>
-</property>
-<property>
-    <name>net.topology.impl</name>
-    <value>org.apache.hadoop.net.NetworkTopologyWithNodeGroup</value>
-</property>
-<property>
-    <name>net.topology.nodegroup.aware</name>
-    <value>true</value>
-</property>
-<property>
-    <name>dfs.block.replicator.classname</name>
-    <value>org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyWithNodeGroup</value>
-</property>
-````
-4. The namenode need a Serviceaccount with the role to get all pods in the whole k8s cluster
+    ````xml
+    <property>
+        <name>net.topology.node.switch.mapping.impl</name>
+        <value>org.apache.hadoop.net.PodToNodeMapping</value>
+    </property>
+    <property>
+        <name>net.topology.impl</name>
+        <value>org.apache.hadoop.net.NetworkTopologyWithNodeGroup</value>
+    </property>
+    <property>
+        <name>net.topology.nodegroup.aware</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>dfs.block.replicator.classname</name>
+        <value>org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyWithNodeGroup</value>
+    </property>
+    ````
+4. The namenode needs a Serviceaccount with the role(ClusterRole/ClusterRoleBinding) to get all pods in the whole k8s cluster
 
 ### Test ###
 1. Create new Client Pod / Add log4j.properties (with DEBUG settings) in Dockerfile or mount
