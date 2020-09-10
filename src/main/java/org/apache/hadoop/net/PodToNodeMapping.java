@@ -6,12 +6,20 @@ import com.google.common.net.InetAddresses;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
+import static java.time.temporal.ChronoUnit.MINUTES;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /*HDSF-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
 *
@@ -31,21 +39,48 @@ import java.util.Map;
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private KubernetesClient kubeclient;
-    private Map<String, String> topologyMap;
+    protected ConcurrentHashMap<String, Pair<String, LocalTime>> topologyMap = new ConcurrentHashMap<String, Pair<String, LocalTime>>();
     private String RACK_NAME = NetworkTopology.DEFAULT_RACK;
     private String topology_delimiter = "/";
+    private LocalTime originTime;
+    private int updateTime = Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
 
     public static final String DEFAULT_NETWORK_LOCATION = NetworkTopology.DEFAULT_RACK + NetworkTopologyWithNodeGroup.DEFAULT_NODEGROUP;
 
     private static Log log = LogFactory.getLog(PodToNodeMapping.class);
 
+    private Thread t = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            log.debug("Starting Thread MapWatcher");
+            while (true) {
+                if ((MINUTES.between(originTime, LocalTime.now())) > updateTime) {
+                    for (Map.Entry<String, Pair<String, LocalTime>> entry : topologyMap.entrySet()) {
+                        if ((MINUTES.between(entry.getValue().getRight(), LocalTime.now())) > updateTime) {
+                            log.debug(entry.getKey() + " is going to be removed");
+                            topologyMap.remove(entry.getKey());
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     public PodToNodeMapping() {
+        originTime = LocalTime.now();
+        log.debug("Startet PodToNodeMapping at " + originTime);
         getOrCreateKubeClient();
+        t.setDaemon(true);
+        t.start();
     }
 
     public PodToNodeMapping(Configuration conf) {
         super(conf);
+        originTime = LocalTime.now();
+        log.debug("Startet PodToNodeMapping at " + originTime);
         getOrCreateKubeClient();
+        t.setDaemon(true);
+        t.start();
     }
 
     private KubernetesClient getOrCreateKubeClient() {
@@ -73,20 +108,24 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     private String createNetAddress(String name) {
         String netAddress = "";
         String nodename = "";
-        //Check if the Name is an IP-Adress or the Name of a physical Node (see above)
-        if (topologyMap.get(name) == null && topologyMap.get(name).isEmpty()) {
+        //Check if the Name is an IP-Address or the Name of a physical Node (see above)
+        log.debug("Checking if identifier " + name + " is cached");
+        if (!topologyMap.containsKey(name)) {
+            log.debug("Identifier " + name + " is not cached");
             if (InetAddresses.isInetAddress(name)) {
                 nodename = resolveByPodIP(name);
-                topologyMap.put(name, nodename);
+                topologyMap.put(name, new ImmutablePair(nodename, LocalTime.now()));
             } else {
                 nodename = name.split("\\.")[0];
-                topologyMap.put(name, nodename);
+                topologyMap.put(name, new ImmutablePair(nodename, LocalTime.now()));
             }
             netAddress = RACK_NAME + topology_delimiter + nodename;
             return netAddress;
         } else {
-            nodename = topologyMap.get(name);
-            return nodename;
+            nodename = topologyMap.get(name).getLeft();
+            log.debug("Identifier " + name + " is cached with nodename " + nodename);
+            netAddress = RACK_NAME + topology_delimiter + nodename;
+            return netAddress;
         }
     }
 
