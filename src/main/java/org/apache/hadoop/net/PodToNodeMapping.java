@@ -12,29 +12,27 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
-import static java.time.temporal.ChronoUnit.MINUTES;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+
+import static java.time.temporal.ChronoUnit.MINUTES;
 
 /*HDSF-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
-*
-* The Method "resolve" gets called by CachedDNSToSwitchMapping and recieves as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
-* or a Pod-IP-Address (eg. 10.100.2.3)
-*
-* With additional Information about on which K8s-Node the datanode and client-pods are running on, hdfs-namenode can perform its Data-Locality optimization Code on K8s (see doc)
-*
-* The output of "resolve" is a List of "K8s-Network-Adresses" in the Format:
-*
-*       default-rack/<kubernetes-node>/<Pod-IP>
-*
-* ,whereas default-rack is currently a constant
-*
-* */
+ *
+ * The Method "resolve" gets called by CachedDNSToSwitchMapping and recieves as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
+ * or a Pod-IP-Address (eg. 10.100.2.3)
+ *
+ * With additional Information about on which K8s-Node the datanode and client-pods are running on, hdfs-namenode can perform its Data-Locality optimization Code on K8s (see doc)
+ *
+ * The output of "resolve" is a List of "K8s-Network-Adresses" in the Format:
+ *
+ *       default-rack/<kubernetes-node>/<Pod-IP>
+ *
+ * ,whereas default-rack is currently a constant
+ *
+ * */
 
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
@@ -61,6 +59,8 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
                             topologyMap.remove(entry.getKey());
                         }
                     }
+                    // Override originTime
+                    originTime = LocalTime.now();
                 }
             }
         }
@@ -131,7 +131,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private String resolveByPodIP(String podIP) {
         String Nodename = "";
-//        get pods with given ip Adress from kubeapi
+        //        get pods with given ip Adress from kubeapi
         List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP).list().getItems();
         if (podsWithIPAddress.size() > 0) {
             Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
