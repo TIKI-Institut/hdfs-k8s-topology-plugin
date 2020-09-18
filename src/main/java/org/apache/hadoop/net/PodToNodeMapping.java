@@ -19,14 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static java.time.temporal.ChronoUnit.MINUTES;
 
-/*HDSF-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
+/*HDFS-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
  *
- * The Method "resolve" gets called by CachedDNSToSwitchMapping and recieves as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
+ * The Method "resolve" gets called by CachedDNSToSwitchMapping and receives as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
  * or a Pod-IP-Address (eg. 10.100.2.3)
  *
  * With additional Information about on which K8s-Node the datanode and client-pods are running on, hdfs-namenode can perform its Data-Locality optimization Code on K8s (see doc)
  *
- * The output of "resolve" is a List of "K8s-Network-Adresses" in the Format:
+ * The output of "resolve" is a List of "K8s-Network-Addresses" in the Format:
  *
  *       default-rack/<kubernetes-node>/<Pod-IP>
  *
@@ -38,10 +38,10 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private KubernetesClient kubeclient;
     protected ConcurrentHashMap<String, Pair<String, LocalTime>> topologyMap = new ConcurrentHashMap<String, Pair<String, LocalTime>>();
-    private String RACK_NAME = NetworkTopology.DEFAULT_RACK;
+    protected static String RACK_NAME = NetworkTopology.DEFAULT_RACK;
     private String topology_delimiter = "/";
     private LocalTime originTime;
-    private int updateTime = Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
+    protected int updateTime;
 
     public static final String DEFAULT_NETWORK_LOCATION = NetworkTopology.DEFAULT_RACK + NetworkTopologyWithNodeGroup.DEFAULT_NODEGROUP;
 
@@ -83,7 +83,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         t.start();
     }
 
-    private KubernetesClient getOrCreateKubeClient() {
+    protected KubernetesClient getOrCreateKubeClient() {
         if (kubeclient != null) {
             return kubeclient;
         }
@@ -91,10 +91,15 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         return kubeclient;
     }
 
+    protected int getUpdateTime() {
+        return Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
+    }
+
 
     @Override
     public List<String> resolve(List<String> names) {
         List<String> networkPathDirList = Lists.newArrayList();
+        kubeclient = getOrCreateKubeClient();
         for (String name : names) {
             String networkPathDir = createNetAddress(name);
             networkPathDirList.add(networkPathDir);
@@ -131,7 +136,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private String resolveByPodIP(String podIP) {
         String Nodename = "";
-        //        get pods with given ip Adress from kubeapi
+        //        get pods with given ip Address from kubeapi
         List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP).list().getItems();
         if (podsWithIPAddress.size() > 0) {
             Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
