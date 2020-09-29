@@ -50,12 +50,13 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     private Thread t = new Thread(new Runnable() {
         @Override
         public void run() {
-            log.debug("Starting Thread MapWatcher");
+            log.debug("[PTNM] Starting Thread MapWatcher");
+            updateTime = getUpdateTime();
             while (true) {
                 if ((MINUTES.between(originTime, LocalTime.now())) > updateTime) {
                     for (Map.Entry<String, Pair<String, LocalTime>> entry : topologyMap.entrySet()) {
                         if ((MINUTES.between(entry.getValue().getRight(), LocalTime.now())) > updateTime) {
-                            log.debug(entry.getKey() + " is going to be removed");
+                            log.debug("[PTNM]" + entry.getKey() + " is going to be removed");
                             topologyMap.remove(entry.getKey());
                         }
                     }
@@ -68,7 +69,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     public PodToNodeMapping() {
         originTime = LocalTime.now();
-        log.debug("Startet PodToNodeMapping at " + originTime);
+        log.debug("[PTNM] Started PodToNodeMapping at " + originTime);
         getOrCreateKubeClient();
         t.setDaemon(true);
         t.start();
@@ -77,7 +78,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     public PodToNodeMapping(Configuration conf) {
         super(conf);
         originTime = LocalTime.now();
-        log.debug("Startet PodToNodeMapping at " + originTime);
+        log.debug("[PTNM] Started PodToNodeMapping at " + originTime);
         getOrCreateKubeClient();
         t.setDaemon(true);
         t.start();
@@ -92,9 +93,12 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     }
 
     protected int getUpdateTime() {
-        return Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
+        if (System.getenv("TOPOLOGY_UPDATE_IN_MIN") != null) {
+            return Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
+        } else {
+            return 5;
+        }
     }
-
 
     @Override
     public List<String> resolve(List<String> names) {
@@ -114,9 +118,9 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         String netAddress = "";
         String nodename = "";
         //Check if the Name is an IP-Address or the Name of a physical Node (see above)
-        log.debug("Checking if identifier " + name + " is cached");
+        log.debug("[PTNM] Checking if identifier " + name + " is cached");
         if (!topologyMap.containsKey(name)) {
-            log.debug("Identifier " + name + " is not cached");
+            log.debug("[PTNM] Identifier " + name + " is not cached");
             if (InetAddresses.isInetAddress(name)) {
                 nodename = resolveByPodIP(name);
                 topologyMap.put(name, new ImmutablePair(nodename, LocalTime.now()));
@@ -128,7 +132,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
             return netAddress;
         } else {
             nodename = topologyMap.get(name).getLeft();
-            log.debug("Identifier " + name + " is cached with nodename " + nodename);
+            log.debug("[PTNM] Identifier " + name + " is cached with nodename " + nodename);
             netAddress = RACK_NAME + topology_delimiter + nodename;
             return netAddress;
         }
@@ -136,7 +140,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private String resolveByPodIP(String podIP) {
         String Nodename = "";
-        //        get pods with given ip Address from kubeapi
+        // get pods with given ip Address from kubeapi
         List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP).list().getItems();
         if (podsWithIPAddress.size() > 0) {
             Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();

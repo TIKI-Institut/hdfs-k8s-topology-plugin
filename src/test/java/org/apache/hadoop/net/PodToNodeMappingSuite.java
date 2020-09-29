@@ -39,11 +39,17 @@ public class PodToNodeMappingSuite {
         rawLocalityInfo.addAll(Arrays.asList(podIPs));
         rawLocalityInfo.addAll(Arrays.asList(fqdns));
 
-        PodList firstPod = new PodListBuilder().withItems(new PodBuilder().withNewMetadata().withName("pod1").endMetadata().withNewStatus().withPodIP(podIPs[0]).endStatus().withNewSpec().withNodeName("kubernetes-worker-1").endSpec().build()).build();
-        PodList secondPod = new PodListBuilder().withItems(new PodBuilder().withNewMetadata().withName("pod2").endMetadata().withNewStatus().withPodIP(podIPs[1]).endStatus().withNewSpec().withNodeName("kubernetes-worker-3").endSpec().build()).build();
+        PodList firstPod = new PodListBuilder().withItems(new PodBuilder().withNewMetadata().withName("pod1")
+                .endMetadata().withNewStatus().withPodIP(podIPs[0]).endStatus().withNewSpec()
+                .withNodeName("kubernetes-worker-1").endSpec().build()).build();
+        PodList secondPod = new PodListBuilder().withItems(new PodBuilder().withNewMetadata().withName("pod2")
+                .endMetadata().withNewStatus().withPodIP(podIPs[1]).endStatus().withNewSpec()
+                .withNodeName("kubernetes-worker-3").endSpec().build()).build();
 
-        server.expect().get().withPath("/api/v1/pods?fieldSelector=status.podIP%3D" + podIPs[0]).andReturn(HttpURLConnection.HTTP_OK, firstPod).always();
-        server.expect().get().withPath("/api/v1/pods?fieldSelector=status.podIP%3D" + podIPs[1]).andReturn(HttpURLConnection.HTTP_OK, secondPod).always();
+        server.expect().get().withPath("/api/v1/pods?fieldSelector=status.podIP%3D" + podIPs[0])
+                .andReturn(HttpURLConnection.HTTP_OK, firstPod).always();
+        server.expect().get().withPath("/api/v1/pods?fieldSelector=status.podIP%3D" + podIPs[1])
+                .andReturn(HttpURLConnection.HTTP_OK, secondPod).always();
         KubernetesClient client = server.getClient();
 
         PodToNodeMapping testInstance = new PodToNodeMapping() {
@@ -57,8 +63,9 @@ public class PodToNodeMappingSuite {
                 return client;
             }
         };
-
-        assertEquals(new ArrayList<String>(Arrays.asList(netString("kubernetes-worker-1"), netString("kubernetes-worker-3"), netString("kubernetes-worker-5"), netString("kubernetes-worker-2"))), testInstance.resolve(rawLocalityInfo));
+        assertEquals(new ArrayList<String>(Arrays.asList(netString("kubernetes-worker-1"),
+                netString("kubernetes-worker-3"), netString("kubernetes-worker-5"),
+                netString("kubernetes-worker-2"))), testInstance.resolve(rawLocalityInfo));
     }
 
     public static String netString(String s) {
