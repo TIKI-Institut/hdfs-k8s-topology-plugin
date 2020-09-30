@@ -58,7 +58,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
                 if ((MINUTES.between(originTime, LocalTime.now())) > updateTime) {
                     for (Map.Entry<String, Pair<String, LocalTime>> entry : topologyMap.entrySet()) {
                         if ((MINUTES.between(entry.getValue().getRight(), LocalTime.now())) > updateTime) {
-                            log.debug("[PTNM]" + entry.getKey() + " is going to be removed");
+                            log.debug("[PTNM] " + entry.getKey() + " is going to be removed");
                             topologyMap.remove(entry.getKey());
                         }
                     }
