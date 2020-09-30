@@ -54,11 +54,6 @@ public class PodToNodeMappingSuite {
 
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
-            protected int getUpdateTime() {
-                return 5;
-            }
-
-            @Override
             protected KubernetesClient getOrCreateKubeClient() {
                 return client;
             }
