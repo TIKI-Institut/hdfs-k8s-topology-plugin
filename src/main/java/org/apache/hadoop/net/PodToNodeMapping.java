@@ -36,16 +36,16 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
-    private KubernetesClient kubeclient;
+    private static final Log log = LogFactory.getLog(PodToNodeMapping.class);
     protected ConcurrentHashMap<String, Pair<String, LocalTime>> topologyMap = new ConcurrentHashMap<String, Pair<String, LocalTime>>();
+    private KubernetesClient kubeclient;
+    private final String topology_delimiter = "/";
     protected static String RACK_NAME = NetworkTopology.DEFAULT_RACK;
-    private String topology_delimiter = "/";
     private LocalTime originTime;
     protected int updateTime;
+    private final String ENV_TOPOLOGY_UPDATE_IN_MIN = "TOPOLOGY_UPDATE_IN_MIN";
 
     public static final String DEFAULT_NETWORK_LOCATION = RACK_NAME + NetworkTopologyWithNodeGroup.DEFAULT_NODEGROUP;
-
-    private static Log log = LogFactory.getLog(PodToNodeMapping.class);
 
     // Daemon Thread for caching already resolved Network Locations
     private Thread t = new Thread(new Runnable() {
@@ -69,7 +69,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         }
     });
 
-    public PodToNodeMapping() {
+    protected void init() {
         originTime = LocalTime.now();
         log.debug("[PTNM] Started PodToNodeMapping at " + originTime);
         // Set Kubernetes Client
@@ -77,15 +77,23 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         // Start Cache-Daemon
         t.setDaemon(true);
         t.start();
+
+        if (System.getenv(ENV_TOPOLOGY_UPDATE_IN_MIN) != null) {
+            try {
+                setUpdateTime(Integer.parseInt(System.getenv(ENV_TOPOLOGY_UPDATE_IN_MIN)));
+            } catch (NumberFormatException e) {
+                log.warn("Error while parsing integer in env variable " + ENV_TOPOLOGY_UPDATE_IN_MIN, e);
+            }
+        }
+    }
+
+    public PodToNodeMapping() {
+        init();
     }
 
     public PodToNodeMapping(Configuration conf) {
         super(conf);
-        originTime = LocalTime.now();
-        log.debug("[PTNM] Started PodToNodeMapping at " + originTime);
-        getOrCreateKubeClient();
-        t.setDaemon(true);
-        t.start();
+        init();
     }
 
     protected KubernetesClient getOrCreateKubeClient() {
@@ -97,12 +105,11 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     }
 
     protected int getUpdateTime() {
-        // Return ENV if set, else take deafult value of 5 minutes
-        if (System.getenv("TOPOLOGY_UPDATE_IN_MIN") != null) {
-            return Integer.parseInt(System.getenv("TOPOLOGY_UPDATE_IN_MIN"));
-        } else {
-            return 5;
-        }
+        return updateTime;
+    }
+
+    public void setUpdateTime(int updateTime) {
+        this.updateTime = updateTime;
     }
 
     //This is the main method, which gets called by Hadoop File System
