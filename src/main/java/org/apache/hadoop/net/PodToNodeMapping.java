@@ -16,23 +16,19 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static java.time.temporal.ChronoUnit.MINUTES;
-
-/*HDFS-Topology Plugin, which maps Pods to K8s-CusterNodes, on which they are running on
+/**
+ * A namenode topology plugin, that maps pods to Kubernetes Nodes to fix data locality
  *
- * The Method "resolve" gets called by CachedDNSToSwitchMapping and receives as Input either a DNS-String, in case of datanodes (eg. k8s-worker-1.org.local),
- * or a Pod-IP-Address (eg. 10.100.2.3)
+ * It resolves a network path of the following structure:
  *
- * With additional Information about on which K8s-Node the datanode and client-pods are running on, hdfs-namenode can perform its Data-Locality optimization Code on K8s (see doc)
+ *          RACK    /   NODE-NAME   /   POD-IP
  *
- * The output of "resolve" is a List of "K8s-Network-Addresses" in the Format:
+ * where NODE-NAME is the name of the K8s-Node, the Pod is running on
+ * In this implementation, the rack is always set to a default value
  *
- *       default-rack/<kubernetes-node>/<Pod-IP>
- *
- * ,whereas default-rack is currently a constant
- *
- * */
-
+ * The resolve method uses an Kubernetes Client to retrieve nodenames from pod-IPs/FQDNs
+ * Resolved nodenames are cached for a fixed amount ouf time (see documentation)
+ */
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private static final Log log = LogFactory.getLog(PodToNodeMapping.class);
@@ -42,8 +38,6 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     protected int updateTime;
     private final String ENV_TOPOLOGY_UPDATE_IN_MIN = "TOPOLOGY_UPDATE_IN_MIN";
     private Cache<String, String> cache;
-
-    public static final String DEFAULT_NETWORK_LOCATION = RACK_NAME + NetworkTopologyWithNodeGroup.DEFAULT_NODEGROUP;
 
     protected void init() {
         // Set Kubernetes Client
@@ -84,7 +78,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         this.updateTime = updateTime;
     }
 
-    //This is the main method, which gets called by Hadoop File System
+    //This is the main method, which gets called by the namenode
     @Override
     public List<String> resolve(List<String> names) {
         List<String> networkPathDirList = Lists.newArrayList();
@@ -130,8 +124,9 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private String resolveByPodIP(String podIP) {
         String Nodename = "";
-        // get pods with given ip Address from kubeapi
-        List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP).list().getItems();
+        // get pods with given ip address from kubeapi
+        List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP)
+                  .list().getItems();
         if (podsWithIPAddress.size() > 0) {
             Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
         }
