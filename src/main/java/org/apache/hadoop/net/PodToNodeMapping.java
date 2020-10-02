@@ -18,14 +18,14 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A namenode topology plugin, that maps pods to Kubernetes Nodes to fix data locality
- *
+ * <p>
  * It resolves a network path of the following structure:
- *
- *          RACK    /   NODE-NAME   /   POD-IP
- *
+ * <p>
+ * RACK    /   NODE-NAME   /   POD-IP
+ * <p>
  * where NODE-NAME is the name of the K8s-Node, the Pod is running on
  * In this implementation, the rack is always set to a default value
- *
+ * <p>
  * The resolve method uses an Kubernetes Client to retrieve nodenames from pod-IPs/FQDNs
  * Resolved nodenames are cached for a fixed amount ouf time (see documentation)
  */
@@ -84,13 +84,12 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         List<String> networkPathDirList = Lists.newArrayList();
         kubeclient = getOrCreateKubeClient();
         for (String name : names) {
-            String networkPathDir = null;
             try {
-                networkPathDir = createNetAddress(name);
+                String networkPathDir = createNetAddress(name);
+                networkPathDirList.add(networkPathDir);
             } catch (ExecutionException e) {
-                e.printStackTrace();
+                log.error("Error will parsing '" + name + "'. Skipping...", e);
             }
-            networkPathDirList.add(networkPathDir);
         }
         if (log.isDebugEnabled()) {
             log.debug("[PTNM] Resolved " + names + " to " + networkPathDirList);
@@ -99,7 +98,6 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     }
 
     private String createNetAddress(String name) throws ExecutionException {
-        String netAddress = "";
         String nodename = "";
         //Check if the Name is an IP-Address or the Name of a physical Node (see above)
         log.debug("[PTNM] Checking if identifier " + name + " is cached");
@@ -107,41 +105,33 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
             log.debug("[PTNM] Identifier " + name + " is not cached");
             if (InetAddresses.isInetAddress(name)) {
                 nodename = resolveByPodIP(name);
-                cache.put(name, nodename);
             } else {
                 nodename = name.split("\\.")[0];
-                cache.put(name, nodename);
             }
-            netAddress = RACK_NAME + topology_delimiter + nodename;
-            return netAddress;
+            cache.put(name, nodename);
         } else {
             nodename = cache.get(name);
             log.debug("[PTNM] Identifier " + name + " is cached with nodename " + nodename);
-            netAddress = RACK_NAME + topology_delimiter + nodename;
-            return netAddress;
         }
+        return RACK_NAME + topology_delimiter + nodename;
     }
 
     private String resolveByPodIP(String podIP) {
-        String Nodename = "";
+        String nodename = "";
         // get pods with given ip address from kubeapi
         List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP)
-                  .list().getItems();
+                .list().getItems();
         if (podsWithIPAddress.size() > 0) {
-            Nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
+            nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
         }
-        return Nodename;
+        return nodename;
     }
 
     @Override
     public void reloadCachedMappings() {
-
     }
 
     @Override
     public void reloadCachedMappings(List<String> names) {
-
     }
-
-
 }
