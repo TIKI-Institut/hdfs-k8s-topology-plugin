@@ -13,8 +13,9 @@ import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class PodToNodeMappingSuite {
 
@@ -130,5 +131,61 @@ public class PodToNodeMappingSuite {
 
     public static String netString(String s) {
         return PodToNodeMapping.RACK_NAME + "/" + s;
+    }
+
+    @Test
+    public void testCaching() throws ExecutionException {
+        PodToNodeMapping testInstance = new PodToNodeMapping() {
+            @Override
+            protected String resolveByPodIP(String podIP) {
+                return "kubernetes-worker-1";
+            }
+        };
+
+        List<String> rawLocalityInfo = new ArrayList<>();
+
+        rawLocalityInfo.add("10.233.58.9");
+        testInstance.resolve(rawLocalityInfo);
+
+        long secondStatsSize = testInstance.cache.size();
+        boolean secondStatsContainsKey = testInstance.cache.asMap().containsKey(rawLocalityInfo.get(0));
+        String secondStatsValue = testInstance.cache.get(rawLocalityInfo.get(0));
+
+
+        assertEquals(1, secondStatsSize);
+        assertTrue(secondStatsContainsKey);
+        assertEquals("kubernetes-worker-1", secondStatsValue);
+    }
+
+    /**
+     * Note that this Unittest is time-dependent
+     * Test sleeps for 10 seconds
+     */
+    @Test
+    public void testCacheExpiry() throws InterruptedException {
+
+        PodToNodeMapping testInstance = new PodToNodeMapping() {
+          @Override
+          protected String resolveByPodIP(String podIP) {
+              return "kubernetes-worker-1";
+          }
+
+          @Override
+          protected int getUpdateTime() {
+              return 1;
+          }
+        };
+
+        List<String> rawLocalityInfo = new ArrayList<>();
+        rawLocalityInfo.add("10.233.90.77");
+
+        testInstance.resolve(rawLocalityInfo);
+
+        assertEquals("kubernetes-worker-1", testInstance.cache.getIfPresent("10.233.90.77"));
+
+        Thread.sleep(1000);
+
+        assertNull(testInstance.cache.getIfPresent("10.233.90.77"));
+
     }
 }

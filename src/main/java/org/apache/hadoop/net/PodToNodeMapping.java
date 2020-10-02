@@ -35,9 +35,9 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     private KubernetesClient kubeclient;
     private final String topology_delimiter = "/";
     protected static String RACK_NAME = NetworkTopology.DEFAULT_RACK;
-    protected int updateTime;
+    protected int updateTime = 300;
     private final String ENV_TOPOLOGY_UPDATE_IN_MIN = "TOPOLOGY_UPDATE_IN_MIN";
-    private Cache<String, String> cache;
+    protected Cache<String, String> cache;
 
     protected void init() {
         // Set Kubernetes Client
@@ -45,12 +45,12 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         // Start Cache
         if (System.getenv(ENV_TOPOLOGY_UPDATE_IN_MIN) != null) {
             try {
-                setUpdateTime(Integer.parseInt(System.getenv(ENV_TOPOLOGY_UPDATE_IN_MIN)));
+                setUpdateTime(Integer.parseInt(System.getenv(ENV_TOPOLOGY_UPDATE_IN_MIN)) * 60);
             } catch (NumberFormatException e) {
                 log.warn("Error while parsing integer in env variable " + ENV_TOPOLOGY_UPDATE_IN_MIN, e);
             }
         }
-        cache = CacheBuilder.newBuilder().expireAfterWrite(getUpdateTime(), TimeUnit.MINUTES).build();
+        cache = CacheBuilder.newBuilder().expireAfterWrite(getUpdateTime(), TimeUnit.SECONDS).build();
     }
 
     public PodToNodeMapping() {
@@ -74,7 +74,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         return updateTime;
     }
 
-    public void setUpdateTime(int updateTime) {
+    private void setUpdateTime(int updateTime) {
         this.updateTime = updateTime;
     }
 
@@ -99,24 +99,24 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
     private String createNetAddress(String name) throws ExecutionException {
         String nodename = "";
-        //Check if the Name is an IP-Address or the Name of a physical Node (see above)
-        log.debug("[PTNM] Checking if identifier " + name + " is cached");
-        if (!(cache.asMap().containsKey(name))) {
-            log.debug("[PTNM] Identifier " + name + " is not cached");
-            if (InetAddresses.isInetAddress(name)) {
-                nodename = resolveByPodIP(name);
+        //Check if Name is an IP-Address or FQDN
+        if (InetAddresses.isInetAddress(name)) {
+            if (cache.asMap().containsKey(name)) {
+                nodename = cache.get(name);
+                log.debug("[PTNM] IP: " + name + " is cached with nodename: " + nodename);
             } else {
-                nodename = name.split("\\.")[0];
+                log.debug("[PTNM] IP: " + name + " is not cached");
+                nodename = resolveByPodIP(name);
+                cache.put(name, nodename);
             }
-            cache.put(name, nodename);
         } else {
-            nodename = cache.get(name);
-            log.debug("[PTNM] Identifier " + name + " is cached with nodename " + nodename);
+            nodename = name.split("\\.")[0];
         }
+
         return RACK_NAME + topology_delimiter + nodename;
     }
 
-    private String resolveByPodIP(String podIP) {
+    protected String resolveByPodIP(String podIP) {
         String nodename = "";
         // get pods with given ip address from kubeapi
         List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP)
