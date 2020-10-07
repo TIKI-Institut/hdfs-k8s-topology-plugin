@@ -8,6 +8,7 @@ import com.google.common.net.InetAddresses;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -117,12 +118,16 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     }
 
     protected String resolveByPodIP(String podIP) {
-        String nodename = "";
+        String nodename = "default-host";
         // get pods with given ip address from kubeapi
-        List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP)
-                .list().getItems();
-        if (podsWithIPAddress.size() > 0) {
-            nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
+        try {
+            List<Pod> podsWithIPAddress = kubeclient.pods().inAnyNamespace().withField("status.podIP", podIP)
+                    .list().getItems();
+            if (podsWithIPAddress.size() > 0) {
+                nodename = podsWithIPAddress.get(0).getSpec().getNodeName();
+            }
+        } catch (KubernetesClientException e) {
+            log.warn("[PTNM] Cannot resolve Node by Pod IP. Returning default Nodename");
         }
         return nodename;
     }

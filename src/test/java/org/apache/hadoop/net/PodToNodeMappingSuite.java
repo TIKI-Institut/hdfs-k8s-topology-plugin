@@ -1,9 +1,11 @@
 package org.apache.hadoop.net;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import org.junit.After;
 import org.junit.Before;
@@ -33,8 +35,8 @@ public class PodToNodeMappingSuite {
 
     @Test
     public void resolveFQDN() {
-        String[] fqdns = {"kubernetes-worker-6.dsp.example.local", "kubernetes-worker-2.dsp.example.local",
-                "kubernetes-worker-4.dsp.example.local", "kubernetes-worker-9.dsp.example.local"};
+        String[] fqdns = {"kubernetes-worker-6.ds.example.local", "kubernetes-worker-2.ds.example.local",
+                "kubernetes-worker-4.ds.example.local", "kubernetes-worker-9.ds.example.local"};
         List<String> rawLocalityInfo = Arrays.asList(fqdns);
 
         PodToNodeMapping testInstance = new PodToNodeMapping();
@@ -95,7 +97,7 @@ public class PodToNodeMappingSuite {
     @Test
     public void resolve() {
         String[] podIPs = {"10.233.115.144", "10.223.178.167"};
-        String[] fqdns = {"kubernetes-worker-5.dsp.example.local", "kubernetes-worker-2.dsp.example.local"};
+        String[] fqdns = {"kubernetes-worker-5.ds.example.local", "kubernetes-worker-2.ds.example.local"};
 
         List<String> rawLocalityInfo = new ArrayList<>();
         rawLocalityInfo.addAll(Arrays.asList(podIPs));
@@ -188,4 +190,42 @@ public class PodToNodeMappingSuite {
         assertNull(testInstance.cache.getIfPresent("10.233.90.77"));
 
     }
+
+    @Test
+    public void testFalseIP() {
+        String[] missingPodIPs = {"78.93.12.5", "165.98.23.6"};
+
+        List<String> rawLocalityInfo = Arrays.asList(missingPodIPs);
+
+        KubernetesClient client = server.getClient();
+
+        PodToNodeMapping testInstance = new PodToNodeMapping() {
+            @Override
+            protected KubernetesClient getOrCreateKubeClient() {
+                return server.getClient();
+            }
+        };
+
+        assertEquals(
+                Arrays.asList(
+                        netString("default-host"),
+                        netString("default-host")),
+                testInstance.resolve(rawLocalityInfo));
+
+    }
+
+    @Test
+    public void testFalseFQDN() {
+        String[] fqdns = {"kubernetes-worker-6.example.local", "kubernetes-worker-2.ds.example"};
+        List<String> rawLocalityInfo = Arrays.asList(fqdns);
+
+        PodToNodeMapping testInstance = new PodToNodeMapping();
+
+        assertEquals(
+                Arrays.asList(
+                        netString("kubernetes-worker-6"),
+                        netString("kubernetes-worker-2")),
+                testInstance.resolve(rawLocalityInfo));
+    }
+
 }
