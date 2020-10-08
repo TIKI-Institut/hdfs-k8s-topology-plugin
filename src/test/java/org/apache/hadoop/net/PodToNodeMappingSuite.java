@@ -1,11 +1,9 @@
 package org.apache.hadoop.net;
 
-import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import org.junit.After;
 import org.junit.Before;
@@ -15,6 +13,7 @@ import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
@@ -139,8 +138,8 @@ public class PodToNodeMappingSuite {
     public void testCaching() throws ExecutionException {
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
-            protected String resolveByPodIP(String podIP) {
-                return "kubernetes-worker-1";
+            protected Optional<String> resolveByPodIP(String podIP) {
+                return Optional.of("kubernetes-worker-1");
             }
         };
 
@@ -161,21 +160,21 @@ public class PodToNodeMappingSuite {
 
     /**
      * Note that this Unittest is time-dependent
-     * Test sleeps for 10 seconds
+     * Test sleeps for 3 seconds
      */
     @Test
     public void testCacheExpiry() throws InterruptedException {
 
         PodToNodeMapping testInstance = new PodToNodeMapping() {
-          @Override
-          protected String resolveByPodIP(String podIP) {
-              return "kubernetes-worker-1";
-          }
+            @Override
+            protected Optional<String> resolveByPodIP(String podIP) {
+                return Optional.of("kubernetes-worker-1");
+            }
 
-          @Override
-          protected int getUpdateTime() {
-              return 1;
-          }
+            @Override
+            protected int getUpdateTime() {
+                return 1;
+            }
         };
 
         List<String> rawLocalityInfo = new ArrayList<>();
@@ -185,7 +184,7 @@ public class PodToNodeMappingSuite {
 
         assertEquals("kubernetes-worker-1", testInstance.cache.getIfPresent("10.233.90.77"));
 
-        Thread.sleep(1000);
+        Thread.sleep(3000);
 
         assertNull(testInstance.cache.getIfPresent("10.233.90.77"));
 
@@ -197,8 +196,6 @@ public class PodToNodeMappingSuite {
 
         List<String> rawLocalityInfo = Arrays.asList(missingPodIPs);
 
-        KubernetesClient client = server.getClient();
-
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
             protected KubernetesClient getOrCreateKubeClient() {
@@ -208,8 +205,8 @@ public class PodToNodeMappingSuite {
 
         assertEquals(
                 Arrays.asList(
-                        netString("default-host"),
-                        netString("default-host")),
+                        netString(PodToNodeMapping.DEFAULT_NODE_NAME),
+                        netString(PodToNodeMapping.DEFAULT_NODE_NAME)),
                 testInstance.resolve(rawLocalityInfo));
 
     }
