@@ -15,11 +15,11 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>namenode-topology-plugin</artifactId>
+  <artifactId>hdfs-k8s-topology-plugin</artifactId>
   <groupId>hdfs-k8s</groupId>
   <version>1.2</version>
-  <description>HDFS topology plugin which resolves network locations</description>
-  <name>namenode topology plugin</name>
+  <description>HDFS plugin which resolves K8s network topology</description>
+  <name>hdfs-k8s-topology-plugin</name>
   <packaging>jar</packaging>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

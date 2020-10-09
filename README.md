@@ -1,15 +1,13 @@
 # README #
 
-This Plugin for HDFS-Namenode resolves the Kubernetes-Cluster-Node for a given Datanode-Pod-VIP. \
-By doing this, it fixes broken HDFS Data Locality on a Kubernetes Cluster.
+This Plugin resolves fixes HDFS Data Locality on Kubernetes \
+It resolves K8s Network locations for Datanodes as well as HDFS Clients \
+This ensures, that clients prefer to consume data from datanodes, which are located on the same kubernetes nodes 
 
 ### Setup ###
 
-1. Build a "fat-jar"(jar with all dependencies) with maven package
-    * Add maven-assembly-plugin to your pom.xml(see hdfs-topology-plugin/pom.xml)
-    * Run maven package
-2. Add the "fat-jar" in Namenode-Dockerfile and rebuild it
-3. Add following tags to hdfs-siteconfig.xml
+1. Copy the Jar to Namenode, Namenode-Formatter, Checkpointnode, Datanodes in directory: "/opt/hadoop-<version>/share/hadoop/common/lib" 
+2. Add following tags to hdfs-siteconfig.xml
     ````xml
     <property>
         <name>net.topology.node.switch.mapping.impl</name>
@@ -28,19 +26,15 @@ By doing this, it fixes broken HDFS Data Locality on a Kubernetes Cluster.
         <value>org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyWithNodeGroup</value>
     </property>
     ````
-4. The namenode needs a Serviceaccount with the role(ClusterRole/ClusterRoleBinding) to get all pods in the whole k8s cluster
+3. If you wish to set a Cache-Expiry interval other than 5 minutes, you can set a Namenode environment-variable with name ``TOPOLOGY_UPDATE_IN_MIN``
+4. The namenode needs a K8s-Serviceaccount with permission to `get` all pods in K8s Cluster
 
 ### Test ###
-1. Create new Client Pod / Add log4j.properties (with DEBUG settings) in Dockerfile or mount
-2. Connect on new Pod and run 
-    ````shell script
-    export JAVA_TOOL_OPTIONS="-Dlog4j.configuration=file:/app/log4j.properties ${JAVA_TOOL_OPTIONS} #For Debug
-    hadoop fs -cat <your_file.txt> 
-    ````
-3. Analyze Pod-Logs and search for 
+1. Create new HDFS-Client Pod (with DEBUG-log setting)
+2. Connect on client Pod and run a ``cat`` (or other read command) on a file stored in HDFS
+3. Search for following Log-Message in client logs: 
     ````
    DEBUG DFSClient: Connecting to datanode <datanode-ip>
     ````
 4. Check if <datanode-ip> matches IP of the datanode which is located on same kubernetes-node as Client-Pod
 5. Repeat this test several times
- 

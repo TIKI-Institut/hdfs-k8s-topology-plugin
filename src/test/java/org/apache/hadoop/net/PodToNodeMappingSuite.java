@@ -138,7 +138,7 @@ public class PodToNodeMappingSuite {
     public void testCaching() throws ExecutionException {
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
-            protected Optional<String> resolveByPodIP(String podIP) {
+            protected Optional<String> getNodenameByIP(String podIP) {
                 return Optional.of("kubernetes-worker-1");
             }
         };
@@ -167,7 +167,7 @@ public class PodToNodeMappingSuite {
 
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
-            protected Optional<String> resolveByPodIP(String podIP) {
+            protected Optional<String> getNodenameByIP(String podIP) {
                 return Optional.of("kubernetes-worker-1");
             }
 

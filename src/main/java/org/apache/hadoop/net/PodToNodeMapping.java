@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * In this implementation, the rack is always set to a default value
  * <p>
  * The resolve method uses an Kubernetes Client to retrieve nodenames from pod-IPs/FQDNs
- * Resolved nodenames are cached for a fixed amount ouf time (see documentation)
+ * Resolved nodenames are cached for a fixed amount ouf time
  */
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
@@ -81,39 +81,44 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         this.updateTime = updateTime;
     }
 
-    //This is the main method, which gets called by the namenode
+    /**
+     * This is the main entrypoint
+     * The methods receives a List of raw Locality Information(either IP or FQDN)
+     * @param names
+     * @return
+     */
     @Override
     public List<String> resolve(List<String> names) {
         List<String> networkPathDirList = Lists.newArrayList();
         kubeclient = getOrCreateKubeClient();
         for (String name : names) {
             try {
-                String networkPathDir = createNetworkPath(name);
+                String networkPathDir = createNetworkLocationPath(name);
                 networkPathDirList.add(networkPathDir);
             } catch (ExecutionException e) {
                 log.error("Error will parsing '" + name + "'. Skipping...", e);
             }
         }
         if (log.isDebugEnabled()) {
-            log.debug("[PTNM] Resolved " + names + " to " + networkPathDirList);
+            log.debug("Resolved " + names + " to " + networkPathDirList);
         }
         return ImmutableList.copyOf(networkPathDirList);
     }
 
-    private String createNetworkPath(String name) throws ExecutionException {
+    private String createNetworkLocationPath(String name) throws ExecutionException {
         String nodename = DEFAULT_NODE_NAME;
         //Check if Name is an IP-Address or FQDN
         if (InetAddresses.isInetAddress(name)) {
             if (cache.asMap().containsKey(name)) {
-                log.debug("[PTNM] IP: " + name + " is cached with nodename: " + nodename);
+                log.debug("IP: " + name + " is cached with nodename: " + nodename);
                 nodename = cache.get(name);
             } else {
-                log.debug("[PTNM] IP: " + name + " is not cached");
-                Optional<String> resolvedPodIP = resolveByPodIP(name);
+                log.debug("IP: " + name + " is not cached");
+                Optional<String> resolvedPodIP = getNodenameByIP(name);
                 if (resolvedPodIP.isPresent()) {
                     nodename = resolvedPodIP.get();
                 } else {
-                    log.debug("[PTNM] Using default node name for IP: " + name);
+                    log.debug("Using default node name for IP: " + name);
                 }
 
                 cache.put(name, nodename);
@@ -125,8 +130,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
         return RACK_NAME + topology_delimiter + nodename;
     }
 
-    protected Optional<String> resolveByPodIP(String podIP) {
-        // get pods with given ip address from kubeapi
+    protected Optional<String> getNodenameByIP(String podIP) {
         try {
             String nodename = null;
 
@@ -138,7 +142,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 
             return Optional.ofNullable(nodename);
         } catch (KubernetesClientException e) {
-            log.warn("[PTNM] Couldn't resolve Node by Pod IP " + podIP, e);
+            log.warn("Couldn't resolve Node by Pod IP " + podIP, e);
             return Optional.empty();
         }
     }
