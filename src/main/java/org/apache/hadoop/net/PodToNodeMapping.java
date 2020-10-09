@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * The resolve method uses an Kubernetes Client to retrieve nodenames from pod-IPs/FQDNs
  * Resolved nodenames are cached for a fixed amount ouf time
+ *
+ * @author Linus Meierhoefer
  */
 public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
 

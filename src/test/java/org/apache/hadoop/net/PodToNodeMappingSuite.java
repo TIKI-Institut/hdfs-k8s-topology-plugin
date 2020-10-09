@@ -18,6 +18,11 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
 
+
+/**
+ * Unit tests
+ * @author Linus Meierhoefer
+ */
 public class PodToNodeMappingSuite {
 
     final private KubernetesServer server = new KubernetesServer();
