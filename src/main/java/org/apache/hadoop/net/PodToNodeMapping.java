@@ -23,13 +23,14 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * It resolves a network path of the following structure:
  * <p>
- * RACK    /   NODE-NAME   /   POD-IP
+ * RACK    /   NODE-NAME   /   POD-IP or FQDN
  * <p>
  * where NODE-NAME is the name of the K8s-Node, the Pod is running on
  * In this implementation, the rack is always set to a default value
  * <p>
  * The resolve method uses an Kubernetes Client to retrieve nodenames from pod-IPs/FQDNs
- * Resolved nodenames are cached for a fixed amount ouf time
+ * Generally, the main methods recieves an FQDN in case of a Datanode-Registry and an IP in case of a Client-Request
+ * Resolved nodenames are cached for a fixed amount of time
  *
  * @author Linus Meierhoefer
  */

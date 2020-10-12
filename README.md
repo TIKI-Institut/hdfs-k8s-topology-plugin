@@ -1,12 +1,18 @@
 # README #
 
-This Plugin resolves fixes HDFS Data Locality on Kubernetes \
-It resolves K8s Network locations for Datanodes as well as HDFS Clients \
-This ensures, that clients prefer to consume data from datanodes, which are located on the same kubernetes nodes 
+## Description ##
+This Plugin fixes HDFS Data Locality on Kubernetes. 
+It resolves K8s-Network-Locations for Datanodes as well as HDFS Clients. \
+This ensures, that clients prefer to consume data from Datanodes, which are located on same kubernetes nodes.  
+Whenever a Datanode-Pod is created, it registeres itself at the Namenode-Pod on which it is assigned to. \
+Namenode tries then to map the Datanode to a "Host" and a "Rack" and to create a network-location-String like "/rack/host/datanode". \
+When running HDFS on Kuberenetes, this will fail because the hosts of the Datanode-Pods are in fact Kubernetes-Nodes and the native hadoop-resolve methods are not compatible with K8s. \
+Namenode will execute the same process, whenever a Client send a request to HDFS.
+For details on the underlying algorithm, please read the Javadoc.
 
-### Setup ###
+## Setup ##
 
-1. Copy the Jar to Namenode, Namenode-Formatter, Checkpointnode, Datanodes in directory: "/opt/hadoop-<version>/share/hadoop/common/lib" 
+1. Copy the Jar to Namenode-, Namenode-Formatter-, Checkpointnode-, Datanodes-Image in directory: "/opt/hadoop-<version>/share/hadoop/common/lib" 
 2. Add following tags to hdfs-siteconfig.xml
     ````xml
     <property>
@@ -26,10 +32,10 @@ This ensures, that clients prefer to consume data from datanodes, which are loca
         <value>org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicyWithNodeGroup</value>
     </property>
     ````
-3. If you wish to set a Cache-Expiry interval other than 5 minutes, you can set a Namenode environment-variable with name ``TOPOLOGY_UPDATE_IN_MIN``
+3. If you wish to set a Cache-Expiry-Interval(see Javadoc) other than 5 minutes, you can set a Namenode environment-variable with name ``TOPOLOGY_UPDATE_IN_MIN``
 4. The namenode needs a K8s-Serviceaccount with permission to `get` all pods in K8s Cluster
 
-### Test ###
+## Test ##
 1. Create new HDFS-Client Pod (with DEBUG-log setting)
 2. Connect on client Pod and run a ``cat`` (or other read command) on a file stored in HDFS
 3. Search for following Log-Message in client logs: 
