@@ -1,6 +1,4 @@
-# README #
-
-# README #
+# hdfs-k8s-topology-plugin #
 
 ## About ##
 The assumption of Data Locality is, that it is more efficient to move the computation rather than to move the data.
