@@ -41,7 +41,7 @@ Simply run ``mvn clean package`` and use the \<jar-with-dependencies\>.jar for i
     ````xml
     <property>
         <name>net.topology.node.switch.mapping.impl</name>
-        <value>org.apache.hadoop.net.PodToNodeMapping</value>
+        <value>com.tiki.ai.hadoop.net.PodToNodeMapping</value>
     </property>
     <property>
         <name>net.topology.impl</name>
