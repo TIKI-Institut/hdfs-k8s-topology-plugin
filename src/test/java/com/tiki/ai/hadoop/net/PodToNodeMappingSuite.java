@@ -1,4 +1,4 @@
-package org.apache.hadoop.net;
+package com.tiki.ai.hadoop.net;
 
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;

@@ -16,7 +16,7 @@
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <artifactId>hdfs-k8s-topology-plugin</artifactId>
-  <groupId>com.tiki</groupId>
+  <groupId>com.tiki.ai</groupId>
   <version>1.2</version>
   <description>HDFS plugin which resolves K8s network topology</description>
   <name>hdfs-k8s-topology-plugin</name>

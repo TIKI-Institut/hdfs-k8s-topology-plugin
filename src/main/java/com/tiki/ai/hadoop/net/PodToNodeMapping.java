@@ -1,4 +1,4 @@
-package org.apache.hadoop.net;
+package com.tiki.ai.hadoop.net;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -12,6 +12,8 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.net.AbstractDNSToSwitchMapping;
+import org.apache.hadoop.net.NetworkTopology;
 
 import java.util.List;
 import java.util.Optional;
