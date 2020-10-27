@@ -1,3 +1,4 @@
+![Build Status](https://travis-ci.org/TIKI-Institut/hdfs-k8s-topology-plugin.svg?branch=master)
 # hdfs-k8s-topology-plugin #
 
 ## About ##
