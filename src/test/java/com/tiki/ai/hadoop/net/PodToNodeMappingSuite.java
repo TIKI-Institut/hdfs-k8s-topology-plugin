@@ -14,13 +14,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
 
 
 /**
  * Unit tests
+ *
  * @author Linus Meierhoefer
  */
 public class PodToNodeMappingSuite {
@@ -140,7 +140,7 @@ public class PodToNodeMappingSuite {
     }
 
     @Test
-    public void testCaching() throws ExecutionException {
+    public void testCaching() {
         PodToNodeMapping testInstance = new PodToNodeMapping() {
             @Override
             protected Optional<String> getNodenameByIP(String podIP) {
@@ -155,7 +155,7 @@ public class PodToNodeMappingSuite {
 
         long secondStatsSize = testInstance.cache.size();
         boolean secondStatsContainsKey = testInstance.cache.asMap().containsKey(rawLocalityInfo.get(0));
-        String secondStatsValue = testInstance.cache.get(rawLocalityInfo.get(0));
+        String secondStatsValue = testInstance.cache.getIfPresent(rawLocalityInfo.get(0));
 
 
         assertEquals(1, secondStatsSize);

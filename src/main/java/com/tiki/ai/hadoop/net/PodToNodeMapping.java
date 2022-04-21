@@ -17,6 +17,7 @@ import org.apache.hadoop.net.NetworkTopology;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +44,7 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     private final String topology_delimiter = "/";
     protected static String RACK_NAME = NetworkTopology.DEFAULT_RACK;
     protected static String DEFAULT_NODE_NAME = "default-host";
+
     protected int updateTime = 300;
     private final String ENV_TOPOLOGY_UPDATE_IN_MIN = "TOPOLOGY_UPDATE_IN_MIN";
     protected Cache<String, String> cache;
@@ -111,23 +113,22 @@ public class PodToNodeMapping extends AbstractDNSToSwitchMapping {
     }
 
     private String createNetworkLocationPath(String name) throws ExecutionException {
-        String nodename = DEFAULT_NODE_NAME;
+        String nodename;
+
         //Check if Name is an IP-Address or FQDN
         if (InetAddresses.isInetAddress(name)) {
-            if (cache.asMap().containsKey(name)) {
-                log.debug("IP: " + name + " is cached with nodename: " + nodename);
-                nodename = cache.get(name);
-            } else {
+            Callable<String> nodenameResolver = () -> {
                 log.debug("IP: " + name + " is not cached");
                 Optional<String> resolvedPodIP = getNodenameByIP(name);
                 if (resolvedPodIP.isPresent()) {
-                    nodename = resolvedPodIP.get();
+                    return resolvedPodIP.get();
                 } else {
                     log.debug("Using default node name for IP: " + name);
+                    return DEFAULT_NODE_NAME;
                 }
+            };
 
-                cache.put(name, nodename);
-            }
+            nodename = cache.get(name, nodenameResolver);
         } else {
             nodename = name.split("\\.")[0];
         }
